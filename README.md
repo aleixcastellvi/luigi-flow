@@ -1,6 +1,26 @@
 ## Description
 
-***Under construction...***
+This Luigi application retrieves data from the [CoinMarketCap API](https://coinmarketcap.com/api/pricing/) related to cryptocurrencies. The data is processed to obtain the top 100 coins sorted by market value, and a CSV file is generated. The generated file is saved in the directory specified in the ***config*** file.
+
+If the file has already been generated, the Luigi task detects it and does not rerun the process, ensuring efficiency and preventing unnecessary API calls. The API calls are made in accordance with the guidelines outlined in the documentation provided by `CoinMarketCap`.
+
+## Setting up a Virtual Environment
+
+**Conda (macOS)**
+
+```bash
+conda create -n luigi-flow python=3.10
+
+conda activate pyspark-flow
+```
+
+Install dependencies with pip
+
+```bash
+pip install -r requirements.txt
+```
+
+--- 
 
 ## Setting Up the Repository with GitHub
  
@@ -43,19 +63,3 @@ git push -u origin main
 *Make sure to replace "username" and "repository-name" with your GitHub username and your repository's name, respectively.*
 
 These steps establish the connection between your local repository and the GitHub repository, allowing you to track changes and collaborate effectively.
-
-## Setting up a Virtual Environment
-
-**Conda (Mac OSX)**
-
-```bash
-conda create -n luigi-flow python=3.10
-
-conda activate pyspark-flow
-```
-
-Install dependencies with pip
-
-```bash
-pip install -r requirements.txt
-```

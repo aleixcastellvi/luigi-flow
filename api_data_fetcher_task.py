@@ -18,8 +18,8 @@ class APIDataFetcherTask(luigi.Task):
 
         parameters = {
             'start': '1',
-            'limit': '5000',
-            'convert': 'USD'
+            'limit': config.LIMIT_VALUES,
+            'convert': config.CURRENCY
         }
 
         headers = {
@@ -32,30 +32,57 @@ class APIDataFetcherTask(luigi.Task):
 
         try:
             response = session.get(url, params=parameters)
-
             raw_data = json.loads(response.text)
-
-            df = pd.json_normalize(raw_data['data'])
-
-            selected_df = df[['cmc_rank', 'name', 'symbol', 'quote.USD.price', 'date_added']]
-
-            renamed_df = selected_df.rename(columns = {'cmc_rank': 'Ranking', 
-                                                       'name':'Coin', 
-                                                       'symbol': 'Crypto ID', 
-                                                       'quote.USD.price':'Price', 
-                                                       'date_added':'Released'})
-
-            renamed_df['Price'] = renamed_df['Price'].apply(lambda x: self.formatted_value(x))
-
-            print(renamed_df)
 
         except (ConnectionError, Timeout, TooManyRedirects) as e:
             print(e)
 
-    def output(self):
-        pass
+        df = pd.json_normalize(raw_data['data'])
 
-    def formatted_value(self, value):
+        selected_df = df[['name', 'symbol', 'quote.USD.price', 'date_added']]
+
+        renamed_df = selected_df.rename(columns = {
+            'name': 'coin', 
+            'symbol': 'id', 
+            'quote.USD.price': 'price', 
+            'date_added': 'released'})
+        
+        # The cost value is sorted from highest to lowest
+        crypto_df = renamed_df.sort_values(by=['price'], ascending=False)
+
+        # New column to define a coin ranking from highest to lowest cost value
+        crypto_df['rank'] = range(1, len(crypto_df) + 1)
+
+        # New format to display the price of each coin
+        crypto_df['price'] = crypto_df['price'].apply(lambda x: self.formatted_price(x))
+
+        # New format to display the release date of each coin
+        crypto_df['released'] = pd.to_datetime(crypto_df['released'])
+        crypto_df['released'] = crypto_df['released'].dt.strftime('%d-%m-%Y')
+
+        # Reorganization of the columns
+        rank_column = crypto_df.columns[-1]
+        other_columns = crypto_df.columns[:-1]
+        order_columns = [rank_column] + list(other_columns)
+
+        top_crypto_df = crypto_df[order_columns]
+
+        # Generate CSV file in the specified directory
+        top_crypto_df.to_csv(config.OUTPUT_DIR, index=False)
+
+    def output(self):
+        return luigi.LocalTarget(config.OUTPUT_DIR)
+
+    def formatted_price(self, value):
+        """
+        This function formats the given price value.
+
+        Args:
+            value (float or int): The price value to be formatted.
+
+        Returns:
+            str: The formatted price.
+        """
         split_price = str(value).split(".")[1]
         if int(value) == 0 and split_price[:2] == "00":
             return str(round(value, 4)).replace(".", ",")
@@ -63,6 +90,15 @@ class APIDataFetcherTask(luigi.Task):
             return self.thousands_values(value)
 
     def thousands_values(self, value):
+        """
+        Formats a numerical value with thousands separator.
+
+        Args:
+            value (float or int): The numerical value to be formatted.
+
+        Returns:
+            str: The formatted value with thousands separator.
+        """
         formated_val = "{:,.2f}".format(value)
         integer, decimals = formated_val.split(".")
         integer = integer.replace(",", ".")
